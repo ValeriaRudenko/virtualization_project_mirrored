@@ -1,0 +1,11 @@
+---
+- name: Configure the client-vm
+  hosts: client
+  become: true
+  tasks:
+    - name: 1. Update Linux
+      #apt: update_cache=yes force_apt_get=yes cache_valid_time=3600
+      shell: apt update
+      
+    - name: 2. Install Firefox
+      apt: name=firefox-esr state=latest

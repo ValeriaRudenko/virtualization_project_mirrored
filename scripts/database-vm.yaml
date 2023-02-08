@@ -1,0 +1,69 @@
+---
+- name: Configure the database-vm
+  hosts: database
+  become: true
+  vars:
+    db_user: postgres
+    db_name: postgres
+
+  tasks:
+    - name: 1. Update Ubuntu
+      #apt: update_cache=yes force_apt_get=yes cache_valid_time=3600
+      shell: apt update
+
+    - name: 2. Install required depenedancies
+      apt: name={{ item }} update_cache=true state=latest
+      with_items:
+        - openssl
+        - libssl-dev
+        - libssl-doc
+        
+    - name: 3. Install PostgreSQL
+      apt: name={{ item }} update_cache=true state=present
+      with_items:
+        - postgresql
+        - postgresql-contrib
+        - libpq-dev
+        - python3-psycopg2
+
+    - name: 4. Ensure the PostgreSQL service is running
+      service: name=postgresql state=started enabled=yes
+
+    - name: 5. Create the database
+      become_user: postgres
+      postgresql_db: name={{ db_name }}
+        template='template0'
+        state=present
+
+    - name: 6. Ensure user has access to the new DB
+      become_user: postgres
+      postgresql_user: db={{ db_name }}
+        name={{ db_user }}
+        password=2pJ7wdg_dj2
+        priv=ALL
+        state=present
+
+    - name: 7. Copy php.sql file to the database-vm
+      copy:
+        src: /home/olpe8731/virtualization_project/scripts/php.sql
+        dest: /var/lib/postgresql/php.sql
+
+    - name: 8. Database initializing
+      become_user: postgres
+      shell: psql {{ db_name }} < /var/lib/postgresql/php.sql
+
+    - name: 9. Allow remote connection to the database
+      postgresql_pg_hba:
+        dest: /etc/postgresql/12/main/pg_hba.conf
+        contype: host
+        users: all
+        databases: all
+        source: 0.0.0.0/0
+        method: md5
+
+    - name: 10. Allow connections to the database from outside of VU
+      become_user: postgres
+      shell: echo "listen_addresses='*'" >> /etc/postgresql/12/main/postgresql.conf
+
+    - name: 11. Restart postgreSQL service
+      shell: service postgresql restart

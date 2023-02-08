@@ -1,0 +1,46 @@
+---
+- name: Configure the webserver-vm
+  hosts: webserver
+  become: true
+  tasks:
+    - name: 0. Check the connection
+      ping:
+
+    - name: 1. Update Ubuntu
+      #apt: update_cache=yes force_apt_get=yes cache_valid_time=3600
+      shell: apt update
+
+    - name: 2. Install Apache2
+      apt: name=apache2 state=latest
+
+    - name: 3. Install PHP
+      apt: name=libapache2-mod-php state=present
+
+    - name: 4. Install PHP postgreSQL module
+      apt: name=php-pgsql
+
+    - name: 5. Remove all files from /var/www/html
+      file:
+        state: "{{ item }}"
+        path: "/var/www/html"
+        owner: root
+        group: root
+        mode: "0755"
+      with_items:
+        - absent
+        - directory
+
+    - name: 6. Install Git
+      apt: name=git state=latest
+
+    - name: 7. Clone a public repository
+      git:
+        repo: https://github.com/petrovoleh/virtualization_project.git
+        dest: /var/www/html
+        clone: yes
+        update: yes
+
+    - name: 8. Copy conn.php to webserver
+      copy:
+        src: /home/olpe8731/virtualization_project/conn.php
+        dest: /var/www/html/
